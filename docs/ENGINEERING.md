@@ -72,7 +72,24 @@ Recommendation:
 - Deploy as a TensorRT FP16 engine built on the vessel's own computer.
 - Keep `yolo26n` unless `yolo26s` gives clearly better small-object recall; the hardware below runs either.
 
-MATLAB-native detector (optional path). MATLAB has no YOLO26. A detector trained in MATLAB (for example YOLO v4 tiny or YOLOX) needs Computer Vision Toolbox and Deep Learning Toolbox, neither of which is installed on the development machine, and deploying it to a Jetson needs GPU Coder. It is a reasonable way to show the detection step inside MATLAB for the challenge, alongside the YOLO26 model that runs on the vessel. `yolov8ObjectDetector` is not a built-in function; it comes from a MathWorks GitHub repository under AGPL-3.0. FloW-Img (about 2000 images, floating bottles, access by application) and WSODD (7467 images, 14 classes of water-surface objects) are useful public data, but neither covers the reject classes or the vessel's 0.55 m viewpoint, so own images are still needed.
+### MATLAB detector path
+
+MATLAB has no YOLO26, so the MATLAB detector is a second model that shows the detection step inside MATLAB and Simulink; YOLO26 remains the model that runs on the vessel. Both train from the same labelled folder (Ultralytics format), read in MATLAB by `loadYoloDataset`.
+
+| Piece | File | Status |
+|---|---|---|
+| Dataset loader, anchors, augmentation | `matlab/detector/loadYoloDataset.m`, `wasteAnchors.m`, `wasteAugment.m` | Tested on a synthetic labelled set |
+| Transfer learning (YOLO v4 tiny from COCO) | `matlab/detector/trainWasteDetector.m` | **Not run.** Needs the "Computer Vision Toolbox Model for YOLO v4 Object Detection" support package and a dataset |
+| Video pipeline: detector, size estimate, verdict | `matlab/detector/detectOnVideo.m` | Tested with a stand-in detector |
+| Simulink: camera, Deep Learning Object Detector block, size estimation | `matlab/simulink/run_perception.m`, `AnkelPerception.slx` | Runs with the toy fixture detector |
+
+The toy fixture (`makeToyDetector.m`, `toyDetector.mat`) is a small YOLO v2 network trained for three minutes on synthetic bright rectangles. It is not a waste detector; it exists so the Simulink wiring can be executed and checked now. In the Simulink run a synthetic camera draws two objects of known size: both were detected in all 31 frames, the width error was 4.7 % for the 0.8 m object and 13 % for the 0.3 m object, and the 0.8 m object was rejected in every frame. The 0.3 m object got the right verdict in 77 % of frames, because 0.3 m plus the error sits on the 0.35 m limit; this per-frame flicker is what the tracker's median over several frames removes on the vessel.
+
+![Simulink perception model](img/simulink_perception.png)
+
+To run the real model through the same wiring: `trainWasteDetector(dataRoot)` then `run_perception('matlab/detector/wasteDetector.mat')`. The perception model is separate from `AnkelBot.slx`, whose closed loop simulates detections geometrically rather than from images.
+
+Still needed for real training: the YOLO v4 support package; Parallel Computing Toolbox and a CUDA GPU (training is CPU-only on the development machine, which is impractical for thousands of images); and a dataset. FloW-Img (about 2000 images of floating waste, access by application) and WSODD (7467 images, 14 classes of water-surface objects) are useful starting data, but own images from the vessel's 0.55 m viewpoint, including the reject classes, are still needed. `yolov8ObjectDetector` is not a built-in function; it comes from a MathWorks GitHub repository under AGPL-3.0. Deploying a MATLAB-trained model to a Jetson would need GPU Coder.
 
 What was actually run here: stock COCO `yolo26n.pt` through `ankelbot.detector` on the reference clip, laptop CPU, PyTorch runtime: median 106 ms per frame (9.4 FPS). It detected the vessel as "boat" and no floating bottles. A waste-specific model is required. Status of the trained model: **open**.
 
@@ -161,7 +178,7 @@ Limits: the blocks run in interpreted mode and the chart calls its helpers extri
 
 ## 11. Tests
 
-MATLAB, `runtests('matlab/tests')`, 16 tests: thrust map inverse, speed hold, heading step specification, top speed, size estimate with and without roll, classifier, calm collection, rejection prevents jams, no rejection produces jams, low-battery return, health loss stops thrusters, block wiring reproduces the simulation, the Simulink model reproduces the simulation, drift estimate, cross-current collection.
+MATLAB, `runtests('matlab/tests')`, 21 tests (16 model tests, 5 detector-path tests). Model tests: thrust map inverse, speed hold, heading step specification, top speed, size estimate with and without roll, classifier, calm collection, rejection prevents jams, no rejection produces jams, low-battery return, health loss stops thrusters, block wiring reproduces the simulation, the Simulink model reproduces the simulation, drift estimate, cross-current collection.
 
 Python, `pytest`, 20 tests: the six MATLAB reference checks above; six tracker tests; six end-to-end simulated missions (calm, oversize over three seeds, cross-current, low battery, health loss, local logging); storage and sync against a local HTTP server, including the offline case; MAVLink encode/decode against a simulated autopilot endpoint.
 
