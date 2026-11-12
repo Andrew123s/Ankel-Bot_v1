@@ -11,6 +11,6 @@ onboard/runs/
 runs/
 *.sqlite*
 matlab_run.log
-matlab/simulink/*.slx
+*.slxc
 matlab/simulink/slprj/
 *.asv

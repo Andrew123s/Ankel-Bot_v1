@@ -126,6 +126,18 @@ classdef AnkelBotTest < matlab.unittest.TestCase
             tc.verifyEqual(X, ref.x, 'AbsTol', 1e-9);
         end
 
+        function simulinkModelMatchesMatlab(tc)
+            % Builds AnkelBot.slx, runs it and compares every step with ankel.simulate.
+            tc.assumeTrue(exist('new_system') > 0, 'Simulink is not installed'); %#ok<EXIST>
+
+            addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'simulink'));
+            r = run_simulink('mixed');
+            tc.verifyEqual(r.steps_compared, 6000);
+            tc.verifyLessThan(r.max_state_error, 1e-9);
+            tc.verifyEqual(r.collected(1), r.collected(2));
+            tc.verifyEqual(r.jams(1), r.jams(2));
+        end
+
         function driftIsEstimatedFromTracks(tc)
             m = ankel.simulate(ankel.scenario('current'), tc.p).metrics;
             tc.verifyEqual(m.drift_est, [0.02 0.06], 'AbsTol', 0.015);

@@ -1,11 +1,9 @@
 function build_ankelbot_slx(scenarioName)
 %BUILD_ANKELBOT_SLX Generate the Simulink model AnkelBot.slx.
 %
-%   REQUIRES Simulink. This script has NOT been executed: the machine it was
-%   written on has base MATLAB only. The four blocks it wires are MATLAB
-%   System objects that ARE tested in MATLAB (see tests/AnkelBotTest.m,
-%   systemBlocksMatchSimulate), with the same one-step delays used here, so
-%   the model reproduces ankel.simulate exactly once it builds.
+%   Requires Simulink. The four blocks are MATLAB System objects wrapping
+%   ankel.BlockCore. run_simulink.m builds the model, simulates it and checks
+%   it against ankel.simulate (identical vessel state at every step).
 %
 %   Signal flow (discrete, 0.1 s):
 %       World -> Supervisor -> Controller -> Plant
@@ -18,6 +16,7 @@ addpath(fileparts(here));
 p = ankel.params();  sc = ankel.scenario(scenarioName);
 mdl = 'AnkelBot';
 if bdIsLoaded(mdl), close_system(mdl, 0); end
+if exist(fullfile(here, [mdl '.slx']), 'file'), delete(fullfile(here, [mdl '.slx'])); end
 new_system(mdl);
 set_param(mdl, 'SolverType', 'Fixed-step', 'Solver', 'FixedStepDiscrete', ...
     'FixedStep', num2str(p.dt), 'StopTime', num2str(sc.T));
@@ -31,9 +30,10 @@ add('World',      'ankel.sys.WorldBlock',      [120 100 280 260]);
 add('Supervisor', 'ankel.sys.SupervisorBlock', [380 100 540 260]);
 add('Controller', 'ankel.sys.ControllerBlock', [640 120 780 220]);
 add('Plant',      'ankel.sys.PlantBlock',      [880 120 1020 240]);
-set_param(blk('World'), 'Scenario', ['''' scenarioName '''']);
+set_param(blk('World'), 'Scenario', scenarioName);
 set_param(blk('Plant'), 'Current', mat2str(sc.current));
-set_param(blk('Supervisor'), 'RejectEnabled', mat2str(sc.reject_enabled));
+onoff = {'off', 'on'};
+set_param(blk('Supervisor'), 'RejectEnabled', onoff{sc.reject_enabled + 1});
 
 % Unit delays that close the two feedback paths (initial conditions = simulate.m)
 dly = @(n, ic, pos) add_block('simulink/Discrete/Unit Delay', blk(n), ...

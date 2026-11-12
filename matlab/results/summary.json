@@ -196,8 +196,8 @@
     "no_reject_collected_pct_mean": 34.117647058823529
   },
   "tests": {
-    "passed": 15,
+    "passed": 16,
     "failed": 0,
-    "total": 15
+    "total": 16
   }
 }

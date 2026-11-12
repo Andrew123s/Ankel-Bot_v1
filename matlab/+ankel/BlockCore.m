@@ -26,7 +26,8 @@ classdef BlockCore < handle
                     o.sup = ankel.supervisorInit();
                     if ~isempty(varargin), o.rejectEnabled = varargin{1}; end
                 case 'world'
-                    o.world = ankel.World(ankel.scenario(varargin{1}), o.p);
+                    name = strrep(char(varargin{1}), '''', '');      % tolerate a quoted dialog value
+                    o.world = ankel.World(ankel.scenario(name), o.p);
                 otherwise
                     error('ankel:BlockCore', 'Unknown block kind %s', kind);
             end
