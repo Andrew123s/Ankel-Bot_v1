@@ -112,7 +112,7 @@
 
   /* ---------- state ---------- */
   const S = { mode: 'assembled', sel: 0, water: true, dims: false, explode: 1, xray: true, cut: 0, labels: true, stepP: 9, stepT: 9, playing: false, playT: 0, overlay: true, paused: false };
-  const HIDE_INTERNAL = new Set(['aftDeck', 'lids', 'encLid', 'fasteners']);
+  const HIDE_INTERNAL = new Set(['aftDeck', 'lids', 'encLid', 'fasteners', 'solar']);
   const byCat = {}; AB.list.forEach((p) => { (byCat[p.cat] = byCat[p.cat] || []).push(p); });
   const clipPlane = new T.Plane(new T.Vector3(-1, 0, 0), 1);
 
@@ -139,7 +139,7 @@
   const dimDefs = [
     { a: [0.68, -0.15, -0.79], b: [0.68, -0.15, 0.83], t: 'LOA 1.62 m' },
     { a: [-0.535, -0.15, -1.2], b: [0.535, -0.15, -1.2], t: 'Beam 1.07 m' },
-    { a: [-0.68, -0.15, 0.6], b: [-0.68, 0.45, 0.6], t: 'Keel–camera 0.60 m' },
+    { a: [-0.68, -0.15, 0.6], b: [-0.68, 0.55, 0.6], t: 'Keel–camera 0.70 m' },
     { a: [0, 0.02, -0.83], b: [0, 0.02, -1.78], t: 'Net 0.95 m' },
   ];
   {
@@ -150,7 +150,7 @@
       pts.push(a, b, a.clone().add(tick), a.clone().sub(tick), b.clone().add(tick), b.clone().sub(tick));
       d.mid = a.clone().lerp(b, 0.5); d.el = mkLabel(d.t, 'dim');
     });
-    dims.add(new T.LineSegments(new T.BufferGeometry().setFromPoints(pts), new T.LineBasicMaterial({ color: 0xf05a1a })));
+    dims.add(new T.LineSegments(new T.BufferGeometry().setFromPoints(pts), new T.LineBasicMaterial({ color: 0x12b5a5 })));
   }
 
   /* ---------- debris ---------- */
@@ -193,7 +193,7 @@
     const g = new T.ShapeGeometry(sh); g.rotateX(Math.PI / 2);
     const m = new T.Mesh(g, new T.MeshBasicMaterial({ color: 0x39d98a, transparent: true, opacity: 0.07, depthWrite: false, side: T.DoubleSide }));
     m.position.set(0, 0.02, 0.6); m.layers.set(1); m.renderOrder = 4; wedge.add(m);
-    const e = new T.LineSegments(new T.BufferGeometry().setFromPoints([[-1, 0], [1, 0]].flatMap((q) => [new T.Vector3(0, 0.45, 0.6), new T.Vector3(q[0] * Math.sin(HF) * r1, 0.02, 0.6 + Math.cos(HF) * r1)])), new T.LineBasicMaterial({ color: 0x39d98a, transparent: true, opacity: 0.5 }));
+    const e = new T.LineSegments(new T.BufferGeometry().setFromPoints([[-1, 0], [1, 0]].flatMap((q) => [new T.Vector3(0, 0.55, 0.6), new T.Vector3(q[0] * Math.sin(HF) * r1, 0.02, 0.6 + Math.cos(HF) * r1)])), new T.LineBasicMaterial({ color: 0x39d98a, transparent: true, opacity: 0.5 }));
     e.layers.set(1); wedge.add(e);
   }
   const ringGeo = new T.BufferGeometry().setFromPoints([[-1, -1], [1, -1], [1, 1], [-1, 1]].map((q) => new T.Vector3(q[0] * 0.17, 0, q[1] * 0.17)));
@@ -286,7 +286,7 @@
     const c = AB.cats[S.sel - 1];
     if (!c) {
       info.innerHTML = '<h2>Overview</h2><p>Twin-hull autonomous surface vessel that funnels floating waste through a central tunnel into a detachable rear net, steered by an on-board vision model.</p>' +
-        '<ul><li>1.62 × 1.07 × 0.60 m (hull) · ≈ 62 kg dry</li><li>Collection swath 1.15–2.0 m</li><li>Rear net ≈ 70 L, tool-free swap</li><li>2 × 350 W thrusters · 2 kWh LiFePO4</li></ul>' +
+        '<ul><li>1.62 × 1.07 × 0.70 m (hull) · ≈ 62 kg dry</li><li>Collection swath 1.15–2.0 m</li><li>Rear net ≈ 70 L, tool-free swap</li><li>2 × 350 W thrusters · 2 kWh LiFePO4 + solar</li></ul>' +
         '<p class="parts">Select a subsystem to isolate it. Drag to orbit, scroll to zoom, right-drag to pan. Figures are design targets for the prototype.</p>'; return;
     }
     info.innerHTML = '<h2>' + c.n + '. ' + c.title + '</h2><p>' + c.text + '</p><ul>' + c.specs.map((s) => '<li>' + s + '</li>').join('') + '</ul>' +

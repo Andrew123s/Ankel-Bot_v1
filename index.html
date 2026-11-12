@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ankel-Bot — Engineering Visualisation</title>
 <style>
-  :root { --bg:#14171b; --panel:#1b1f25; --line:#2c323a; --ink:#e7eaee; --dim:#98a1ad; --acc:#f05a1a; --ok:#39d98a; }
+  :root { --bg:#14171b; --panel:#1b1f25; --line:#2c323a; --ink:#e7eaee; --dim:#98a1ad; --acc:#12a898; --ok:#39d98a; }
   * { box-sizing:border-box; }
   html,body { margin:0; height:100%; background:var(--bg); color:var(--ink); font:13px/1.45 "Segoe UI",system-ui,Arial,sans-serif; overflow:hidden; }
   #app { display:flex; height:100%; }
@@ -32,7 +32,7 @@
   #labels { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
   .label { position:absolute; transform:translate(-50%,-130%); white-space:nowrap; padding:2px 8px; border-radius:10px; background:rgba(18,21,25,.86); border:1px solid #3a424c; font-size:11px; color:#e7eaee; }
   .label::after { content:""; position:absolute; left:50%; bottom:-7px; width:1px; height:7px; background:#8a94a0; }
-  .label.dim { background:rgba(240,90,26,.92); border-color:transparent; color:#fff; font-weight:600; }
+  .label.dim { background:rgba(18,168,152,.94); border-color:transparent; color:#fff; font-weight:600; }
   button, .tab { font:inherit; color:var(--ink); background:#262b33; border:1px solid var(--line); border-radius:6px; padding:6px 12px; cursor:pointer; }
   button:hover, .tab:hover { background:#303640; }
   #modes { position:absolute; top:14px; left:50%; transform:translateX(-50%); display:flex; gap:4px; padding:4px; background:rgba(27,31,37,.92); border:1px solid var(--line); border-radius:9px; }
