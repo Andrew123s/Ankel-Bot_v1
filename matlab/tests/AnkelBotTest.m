@@ -128,14 +128,19 @@ classdef AnkelBotTest < matlab.unittest.TestCase
 
         function simulinkModelMatchesMatlab(tc)
             % Builds AnkelBot.slx, runs it and compares every step with ankel.simulate.
-            tc.assumeTrue(exist('new_system') > 0, 'Simulink is not installed'); %#ok<EXIST>
+            tc.assumeTrue(exist('new_system') > 0 && exist('sfnew') > 0, 'Simulink/Stateflow not installed'); %#ok<EXIST>
 
             addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'simulink'));
-            r = run_simulink('mixed');
-            tc.verifyEqual(r.steps_compared, 6000);
+            % mixed: avoid/back-off; current: drift; low_battery: return/dock; link_loss: failsafe
+            for name = {'mixed', 'current', 'low_battery', 'link_loss'}
+                r = run_simulink(name{1}, true, false);            % Stateflow supervisor
+                tc.verifyLessThan(r.max_state_error, 1e-9, name{1});
+                tc.verifyTrue(r.states_equal, name{1});
+                tc.verifyEqual(r.collected(1), r.collected(2), name{1});
+                tc.verifyEqual(r.jams(1), r.jams(2), name{1});
+            end
+            r = run_simulink('mixed_no_reject', false, false);     % MATLAB System supervisor
             tc.verifyLessThan(r.max_state_error, 1e-9);
-            tc.verifyEqual(r.collected(1), r.collected(2));
-            tc.verifyEqual(r.jams(1), r.jams(2));
         end
 
         function driftIsEstimatedFromTracks(tc)

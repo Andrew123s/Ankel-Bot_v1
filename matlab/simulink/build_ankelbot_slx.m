@@ -1,5 +1,9 @@
-function build_ankelbot_slx(scenarioName)
+function build_ankelbot_slx(scenarioName, useChart)
 %BUILD_ANKELBOT_SLX Generate the Simulink model AnkelBot.slx.
+%
+%   build_ankelbot_slx(scenario)          supervisor as a Stateflow chart (default)
+%   build_ankelbot_slx(scenario, false)   supervisor as a MATLAB System block
+%   Scenarios with the rejection system disabled always use the System block.
 %
 %   Requires Simulink. The four blocks are MATLAB System objects wrapping
 %   ankel.BlockCore. run_simulink.m builds the model, simulates it and checks
@@ -11,6 +15,7 @@ function build_ankelbot_slx(scenarioName)
 %         +--z^-1----+ (rake, wings, state)    |
 %         +--z^-1------------------------------+ (x, ug, power)
 if nargin < 1, scenarioName = 'mixed'; end
+if nargin < 2, useChart = true; end
 here = fileparts(mfilename('fullpath'));
 addpath(fileparts(here));
 p = ankel.params();  sc = ankel.scenario(scenarioName);
@@ -27,19 +32,26 @@ add = @(n, cls, pos) add_block(msys, blk(n), 'System', cls, ...
     'SimulateUsing', 'Interpreted execution', 'Position', pos);
 
 add('World',      'ankel.sys.WorldBlock',      [120 100 280 260]);
-add('Supervisor', 'ankel.sys.SupervisorBlock', [380 100 540 260]);
+useChart = useChart && sc.reject_enabled && exist('sfnew') > 0; %#ok<EXIST>
+if useChart
+    add_supervisor_chart(mdl, 'Supervisor', [380 100 540 260]);
+else
+    add('Supervisor', 'ankel.sys.SupervisorBlock', [380 100 540 260]);
+end
 add('Controller', 'ankel.sys.ControllerBlock', [640 120 780 220]);
 add('Plant',      'ankel.sys.PlantBlock',      [880 120 1020 240]);
 set_param(blk('World'), 'Scenario', scenarioName);
 set_param(blk('Plant'), 'Current', mat2str(sc.current));
-onoff = {'off', 'on'};
-set_param(blk('Supervisor'), 'RejectEnabled', onoff{sc.reject_enabled + 1});
+if ~useChart
+    onoff = {'off', 'on'};
+    set_param(blk('Supervisor'), 'RejectEnabled', onoff{sc.reject_enabled + 1});
+end
 
 % Unit delays that close the two feedback paths (initial conditions = simulate.m)
 dly = @(n, ic, pos) add_block('simulink/Discrete/Unit Delay', blk(n), ...
     'InitialCondition', ic, 'SampleTime', num2str(p.dt), 'Position', pos);
 dly('z_x',    'zeros(6,1)',                          [880 330 920 360]);
-dly('z_ug',   '0',                                   [880 380 920 410]);
+dly('z_ug',   num2str(sc.current(1), 17),            [880 380 920 410]);   % ground speed at the initial heading (north)
 dly('z_P',    num2str(p.P_hotel),                    [880 430 920 460]);
 dly('z_gate', '0',                                   [380 330 420 360]);
 dly('z_wing', mat2str([p.wing_nom p.wing_nom]),      [380 380 420 410]);
