@@ -1,0 +1,37 @@
+{
+  "camera": { "source": 0, "width": 1280, "height": 720 },
+  "detector": {
+    "weights": "models/ankelbot_yolo26n.pt",
+    "imgsz": 640,
+    "conf": 0.35,
+    "device": null,
+    "collect_classes": ["bottle", "can", "plastic_bag", "cup", "carton", "foam", "wrapper", "other_waste"],
+    "oversize_classes": ["branch", "log", "tyre", "vegetation_mat"],
+    "avoid_classes": ["person", "boat", "bird", "animal"]
+  },
+  "mavlink": {
+    "url": "/dev/ttyTHS1",
+    "baud": 921600,
+    "gcs_sysid": 255,
+    "steer_channel": 1,
+    "throttle_channel": 3,
+    "servo_wing_port": 5,
+    "servo_wing_stbd": 6,
+    "servo_gate": 7,
+    "gate_open_pwm": 1100,
+    "gate_closed_pwm": 1900,
+    "act_base": [0.435, 0.64],
+    "act_arm": 0.30,
+    "act_pwm_retracted": 1000,
+    "act_pwm_extended": 2000,
+    "roll_sign": -1,
+    "pitch_sign": -1,
+    "mouth_sensor_id": 1,
+    "mouth_block_m": 0.25,
+    "net_sensor_id": 2,
+    "net_full_m": 0.15,
+    "obstacle_sensor_ids": [3, 4]
+  },
+  "storage": { "path": "data/ankelbot.sqlite" },
+  "sync": { "enabled": false, "endpoint": "" }
+}

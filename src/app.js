@@ -158,7 +158,7 @@
   const DM = {
     pet: new T.MeshPhysicalMaterial({ color: 0xdce8f0, roughness: 0.08, transparent: true, opacity: 0.55 }), cap: std({ color: 0x2a6bd1, roughness: 0.5 }),
     can: std({ color: 0xb9302a, metalness: 0.7, roughness: 0.35 }), bag: std({ color: 0xeeeeea, roughness: 0.85, flatShading: true }),
-    bagR: std({ color: 0xc94a4a, roughness: 0.85, flatShading: true }), leaf: std({ color: 0x7a5a2e, roughness: 0.95, side: T.DoubleSide }), cup: std({ color: 0xf4f4f0, roughness: 0.9 }),
+    bagR: std({ color: 0xc94a4a, roughness: 0.85, flatShading: true }), leaf: std({ color: 0x7a5a2e, roughness: 0.95, side: T.DoubleSide }), cup: std({ color: 0xf4f4f0, roughness: 0.9 }), log: std({ color: 0x4a3524, roughness: 1 }),
   };
   const TYPES = [['bottle', 'PET bottle'], ['bottle', 'PET bottle'], ['bag', 'plastic bag'], ['can', 'drink can'], ['leaf', 'leaf litter'], ['cup', 'foam cup']];
   function debrisMesh(type) {
@@ -176,11 +176,14 @@
       b.computeVertexNormals(); add(b, Math.random() < 0.4 ? DM.bagR : DM.bag).scale.set(1.2, 0.3, 0.9);
     } else if (type === 'leaf') {
       for (let i = 0; i < 4; i++) { const l = new T.CircleGeometry(0.035, 8); l.rotateX(-Math.PI / 2); const q = add(l, DM.leaf); q.scale.set(1.6, 1, 0.8); q.position.set(rnd(-0.07, 0.07), 0.012 + i * 0.002, rnd(-0.07, 0.07)); q.rotation.y = rnd(0, 6); q.castShadow = false; }
+    } else if (type === 'log') {
+      const b = new T.CylinderGeometry(0.07, 0.085, 0.95, 10); b.rotateZ(Math.PI / 2); add(b, DM.log);
+      const k = new T.CylinderGeometry(0.03, 0.035, 0.3, 8); k.rotateX(1.1); add(k, DM.log).position.set(0.15, 0.03, 0.12);
     } else { add(new T.CylinderGeometry(0.04, 0.028, 0.09, 14), DM.cup).rotation.z = 1.2; }
     return g;
   }
   const debris = [];
-  for (let i = 0; i < 16; i++) { const t = TYPES[i % TYPES.length]; const d = { type: t[0], name: t[1], mesh: debrisMesh(t[0]), state: 'free', x: 0, z: 0, lx: 0, lz: 0, ph: rnd(0, 6), conf: rnd(0.8, 0.97), sx: 0, sz: 0 }; scene.add(d.mesh); debris.push(d); }
+  for (let i = 0; i < 18; i++) { const t = i >= 16 ? ['log', 'branch'] : TYPES[i % TYPES.length]; const d = { type: t[0], name: t[1], mesh: debrisMesh(t[0]), over: t[0] === 'log', state: 'free', x: 0, z: 0, lx: 0, lz: 0, ph: rnd(0, 6), conf: rnd(0.8, 0.97), sx: 0, sz: 0 }; scene.add(d.mesh); debris.push(d); }
 
   /* ---------- AI overlay objects (layer 1 = not seen by the on-board camera) ---------- */
   const botCam = new T.PerspectiveCamera(50, 16 / 9, 0.05, 80);
@@ -197,14 +200,14 @@
     e.layers.set(1); wedge.add(e);
   }
   const ringGeo = new T.BufferGeometry().setFromPoints([[-1, -1], [1, -1], [1, 1], [-1, 1]].map((q) => new T.Vector3(q[0] * 0.17, 0, q[1] * 0.17)));
-  const ringG = new T.LineBasicMaterial({ color: 0x39d98a }), ringT = new T.LineBasicMaterial({ color: 0xffb020 });
+  const ringG = new T.LineBasicMaterial({ color: 0x39d98a }), ringT = new T.LineBasicMaterial({ color: 0xffb020 }), ringO = new T.LineBasicMaterial({ color: 0xff4a3a });
   const rings = debris.map(() => { const l = new T.LineLoop(ringGeo, ringG); l.layers.set(1); l.visible = false; scene.add(l); return l; });
   const aimGeo = new T.BufferGeometry().setFromPoints([new T.Vector3(), new T.Vector3()]);
   const aim = new T.Line(aimGeo, new T.LineBasicMaterial({ color: 0xffb020 })); aim.layers.set(1); aim.frustumCulled = false; scene.add(aim);
   const dets = debris.map(() => { const d = document.createElement('div'); d.className = 'det'; d.innerHTML = '<span></span>'; d.style.display = 'none'; pip.appendChild(d); return d; });
 
   /* ---------- simulation ---------- */
-  const sim = { x: 0, z: 0, yaw: 0, v: 0, tP: 0, tS: 0, state: 'SEARCH', target: null, collected: 0, inNet: [], swap: 0, swapDir: 0, soc: 100, power: 0, flap: 1.1, t: 0, swaps: 0 };
+  const sim = { rake: 0, x: 0, z: 0, yaw: 0, v: 0, tP: 0, tS: 0, state: 'SEARCH', target: null, collected: 0, inNet: [], swap: 0, swapDir: 0, soc: 100, power: 0, flap: 1.1, t: 0, swaps: 0 };
   const CAP = 14;
   function spawn(d, first) {
     const a = sim.yaw + rnd(-0.8, 0.8), r = first ? rnd(2.5, 10) : rnd(7, 11);
@@ -219,16 +222,21 @@
     sim.t += dt;
     const cs = Math.cos(sim.yaw), sn = Math.sin(sim.yaw), a = AB.wingAngle, reach = 0.81 + 0.8 * Math.cos(a);
     // --- perception: what the on-board camera can see ---
-    let best = null, bd = 1e9;
+    let best = null, bd = 1e9, threat = null, td = 1e9;
     debris.forEach((d) => {
       d.seen = false; if (d.state !== 'free') return;
       const dx = d.x - sim.x, dz = d.z - sim.z; d.lx = dx * cs - dz * sn; d.lz = dx * sn + dz * cs; d.dist = Math.hypot(dx, dz); d.brg = Math.atan2(d.lx, d.lz - 0.6);
-      if (d.lz > 0.95 && d.dist < 7 && Math.abs(d.brg) < HF) { d.seen = true; if (d.dist < bd) { bd = d.dist; best = d; } }
+      if (d.lz > 0.95 && d.dist < 7 && Math.abs(d.brg) < HF) { d.seen = true; if (!d.over && d.dist < bd) { bd = d.dist; best = d; } }
+      if (d.over && d.lz > -2 && d.dist < 4.5 && Math.abs(d.lx) < 1.65 && d.dist < td) { td = d.dist; threat = d; }
     });
     if (!sim.target || !sim.target.seen) sim.target = best;
     // --- control: bearing error -> differential thrust ---
     let yawRate, vT;
     if (sim.swapDir || sim.swap > 0) { sim.state = 'NET SWAP'; yawRate = 0; vT = 0; }
+    else if (threat) { // oversize: close the rake and pass it outside the wing tip
+      const side = threat.lx > 0 ? -1 : 1, b = Math.atan2(threat.lx, threat.lz) + side * Math.asin(Math.min(1, 1.75 / Math.max(td, 0.01)));
+      sim.state = 'AVOID'; yawRate = clamp(1.8 * b, -0.6, 0.6); vT = 0.35; sim.target = null;
+    }
     else if (sim.target) { const b = Math.atan2(sim.target.lx, sim.target.lz); sim.state = 'TRACK'; yawRate = clamp(1.8 * b, -0.6, 0.6); vT = Math.abs(b) < 0.5 ? 0.5 : 0.28; }
     else { sim.state = 'SEARCH'; yawRate = 0.22; vT = 0.3; }
     sim.v = lerp(sim.v, vT, Math.min(1, dt * 1.5));
@@ -238,17 +246,20 @@
     sim.yaw += (sim.tS - sim.tP) / 0.9 * dt; sim.x += Math.sin(sim.yaw) * sim.v * dt; sim.z += Math.cos(sim.yaw) * sim.v * dt;
     sim.power = 30 + 350 * (Math.pow(Math.abs(sim.tP), 1.5) + Math.pow(Math.abs(sim.tS), 1.5));
     sim.soc = Math.max(0, sim.soc - (sim.power * dt) / 3600 / 2048 * 100);
+    sim.rake = clamp(sim.rake + (threat ? 1 : -1) * dt / 0.8, 0, 1);
     // --- debris ---
     let gateBusy = false;
     debris.forEach((d) => {
       const bobY = -0.012 + 0.006 * Math.sin(sim.t * 1.6 + d.ph);
       if (d.state === 'free') {
-        if (d.lz > 0.6 && d.lz < reach - 0.04 && Math.abs(d.lx) < 0.27 + Math.max(0, d.lz - 0.81) * Math.tan(a)) {
+        if (d.over && d.lz > 0.5 && d.lz < reach + 0.3 && Math.abs(d.lx) < 0.75 + Math.max(0, d.lz - 0.81) * Math.tan(a)) { // shouldered aside by wing / closed rake
+          const nx = Math.sign(d.lx || 1) * (0.78 + Math.max(0, d.lz - 0.81) * Math.tan(a)); d.x = sim.x + nx * cs + d.lz * sn; d.z = sim.z - nx * sn + d.lz * cs;
+        } else if (!d.over && sim.rake < 0.5 && d.lz > 0.6 && d.lz < reach - 0.04 && Math.abs(d.lx) < 0.27 + Math.max(0, d.lz - 0.81) * Math.tan(a)) {
           d.state = 'funnel'; bot.attach(d.mesh); d.mesh.position.set(d.lx, bobY, d.lz); d.sz = rnd(-1.68, -0.98); d.sx = rnd(-1, 1);
           if (sim.target === d) sim.target = null; return;
         }
-        if (Math.abs(d.lx) < 0.62 && d.lz < 0.85 && d.lz > -1.9) { // slides along the hull side
-          const nx = Math.sign(d.lx || 1) * 0.62; d.x = sim.x + nx * cs + d.lz * sn; d.z = sim.z - nx * sn + d.lz * cs;
+        if (Math.abs(d.lx) < (d.over ? 1.0 : 0.62) && d.lz < 0.85 && d.lz > -1.9) { // slides along the hull side
+          const nx = Math.sign(d.lx || 1) * (d.over ? 1.0 : 0.62); d.x = sim.x + nx * cs + d.lz * sn; d.z = sim.z - nx * sn + d.lz * cs;
         }
         if (d.lz < -3 || d.dist > 13) spawn(d, false);
         d.mesh.position.set(d.x, bobY, d.z); d.mesh.rotation.y += dt * 0.1;
@@ -286,7 +297,7 @@
     const c = AB.cats[S.sel - 1];
     if (!c) {
       info.innerHTML = '<h2>Overview</h2><p>Twin-hull autonomous surface vessel that funnels floating waste through a central tunnel into a detachable rear net, steered by an on-board vision model.</p>' +
-        '<ul><li>1.62 × 1.07 × 0.70 m (hull) · ≈ 62 kg dry</li><li>Collection swath 1.15–2.0 m</li><li>Rear net ≈ 70 L, tool-free swap</li><li>2 × 350 W thrusters · 2 kWh LiFePO4 + solar</li></ul>' +
+        '<ul><li>1.62 × 1.07 × 0.70 m (hull) · ≈ 62 kg dry</li><li>Collection swath 1.15–2.0 m</li><li>Rear net ≈ 70 L, tool-free swap</li><li>Oversize reject rake + steer-around</li><li>2 × 350 W thrusters · 2 kWh LiFePO4 + solar</li></ul>' +
         '<p class="parts">Select a subsystem to isolate it. Drag to orbit, scroll to zoom, right-drag to pan. Figures are design targets for the prototype.</p>'; return;
     }
     info.innerHTML = '<h2>' + c.n + '. ' + c.title + '</h2><p>' + c.text + '</p><ul>' + c.specs.map((s) => '<li>' + s + '</li>').join('') + '</ul>' +
@@ -300,7 +311,7 @@
   function renderCtx() {
     const m = S.mode; let h = '';
     if (m === 'assembled') h = '<label><input type="checkbox" id="oWater"' + (S.water ? ' checked' : '') + '>On water</label><label><input type="checkbox" id="oDims"' + (S.dims ? ' checked' : '') + '>Dimensions</label>' +
-      '<label>Wing sweep <input type="range" id="oWing" min="20" max="60" value="' + Math.round(AB.wingAngle * 57.3) + '"><span id="oWingV"></span></label><button id="oSwap">Detach / refit net</button>';
+      '<label>Wing sweep <input type="range" id="oWing" min="20" max="60" value="' + Math.round(AB.wingAngle * 57.3) + '"><span id="oWingV"></span></label><button id="oSwap">Detach / refit net</button><button id="oRake">Reject rake open / closed</button>';
     if (m === 'exploded') h = '<label>Explode <input type="range" id="oExp" min="0" max="100" value="' + S.explode * 100 + '"></label><label><input type="checkbox" id="oLab"' + (S.labels ? ' checked' : '') + '>Labels</label>';
     if (m === 'internal') h = '<label><input type="checkbox" id="oXray"' + (S.xray ? ' checked' : '') + '>X-ray shells</label><label>Section cut <input type="range" id="oCut" min="0" max="100" value="' + S.cut * 100 + '"></label><label><input type="checkbox" id="oLab"' + (S.labels ? ' checked' : '') + '>Labels</label><span style="color:var(--dim)">Deck covers and lids removed</span>';
     if (m === 'assembly') { const c = AB.cats[clamp(S.stepT, 1, 9) - 1]; h = '<button id="aPrev">◀</button><button id="aPlay">' + (S.playing ? 'Pause' : 'Play') + '</button><button id="aNext">▶</button><div class="cap"><b>Step ' + S.stepT + ' / 9 — ' + (S.stepT ? c.title : 'Start') + '</b><span>' + (S.stepT ? c.step : 'Press Play to build the machine part by part.') + '</span></div>'; }
@@ -316,6 +327,7 @@
     on('oOv', 'onchange', (e) => { S.overlay = e.target.checked; });
     on('pPause', 'onclick', () => { S.paused = !S.paused; renderCtx(); });
     on('oSwap', 'onclick', startSwap);
+    on('oRake', 'onclick', () => { S.rakeT = S.rakeT ? 0 : 1; });
     const wv = $('#oWingV'); if (wv) wv.textContent = Math.round(AB.wingAngle * 57.3) + '°';
     on('oWing', 'oninput', (e) => { AB.setWings(e.target.value / 57.3); wv.textContent = e.target.value + '°'; });
     on('aPrev', 'onclick', () => { S.playing = false; S.stepT = Math.max(0, S.stepT - 1); S.sel = S.stepT; renderInfo(); renderCtx(); });
@@ -368,6 +380,8 @@
     const spin = op && !S.paused;
     AB.props.forEach((p) => { if (spin) p.obj.rotation.z += p.sg * (p.sg > 0 ? sim.tP : sim.tS) * 70 * dt; });
     AB.setFlaps(op ? sim.flap + 0.03 * Math.sin(tt * 5) : 1.05);
+    S.rake = lerp(S.rake || 0, S.rakeT || 0, Math.min(1, dt * 5));
+    AB.setRake(op ? sim.rake : S.rake);
     wakeMat.opacity = op ? clamp((Math.abs(sim.tP) + Math.abs(sim.tS)) * 0.9, 0, 0.75) : 0; wakes.visible = op;
     if (spin) streak.offset.y += dt * 0.5;
 
@@ -416,12 +430,12 @@
         const r = rings[i], e = dets[i], seen = d.state === 'free' && d.seen, tg = d === sim.target;
         r.visible = seen && S.overlay; e.style.display = 'none';
         if (!seen) return;
-        r.position.set(d.x, 0.03, d.z); r.material = tg ? ringT : ringG; r.rotation.y = sim.yaw;
+        r.position.set(d.x, 0.03, d.z); r.material = d.over ? ringO : tg ? ringT : ringG; r.rotation.y = sim.yaw; r.scale.setScalar(d.over ? 3 : 1);
         if (tg && S.overlay) { const a = aimGeo.attributes.position; a.setXYZ(0, _a.x, _a.y, _a.z); a.setXYZ(1, d.x, 0.03, d.z); a.needsUpdate = true; aim.visible = true; }
         _v.set(d.x, 0.02, d.z).project(botCam); if (_v.z > 1 || Math.abs(_v.x) > 0.98 || Math.abs(_v.y) > 0.98) return;
         const s = clamp((0.3 / d.dist) * f, 10, 90), cx = ((_v.x + 1) / 2) * pw, cy = ((1 - _v.y) / 2) * ph;
-        e.style.display = ''; e.className = 'det' + (tg ? ' tgt' : ''); e.style.left = cx - s / 2 + 'px'; e.style.top = cy - s * 0.35 + 'px'; e.style.width = s + 'px'; e.style.height = s * 0.6 + 'px';
-        e.firstChild.textContent = d.name + ' ' + clamp(d.conf - d.dist * 0.02, 0.4, 0.99).toFixed(2);
+        e.style.display = ''; e.className = 'det' + (d.over ? ' over' : tg ? ' tgt' : ''); e.style.left = cx - s / 2 + 'px'; e.style.top = cy - s * 0.35 + 'px'; e.style.width = s + 'px'; e.style.height = s * 0.6 + 'px';
+        e.firstChild.textContent = (d.over ? 'OVERSIZE ' : '') + d.name + ' ' + clamp(d.conf - d.dist * 0.02, 0.4, 0.99).toFixed(2);
       });
       hudT -= dt;
       if (hudT <= 0) {
@@ -431,6 +445,7 @@
           '<div class="row"><span>Speed</span><b>' + sim.v.toFixed(2) + ' m/s</b></div>' +
           '<div class="row"><span>Heading</span><b>' + String(Math.round((((sim.yaw * 57.2958) % 360) + 360) % 360)).padStart(3, '0') + '°</b></div>' +
           '<div class="row"><span>Detections in view</span><b>' + debris.filter((d) => d.state === 'free' && d.seen).length + '</b></div>' +
+          '<div class="row"><span>Reject rake</span><b>' + (sim.rake > 0.5 ? 'CLOSED' : 'open') + '</b></div>' +
           '<div class="row"><span>Items collected</span><b>' + sim.collected + '</b></div>' +
           '<div class="row"><span>Net fill</span><b>' + Math.round(fill * 100) + '% · swaps ' + sim.swaps + '</b></div><div class="bar"><i style="width:' + fill * 100 + '%"></i></div>' +
           '<div class="row"><span>Power draw</span><b>' + Math.round(sim.power) + ' W</b></div>' +

@@ -214,6 +214,21 @@
       AB.flaps.push({ sg, piv });
     });
   }
+  {
+    // Oversize reject rake: a tined gate hinged under the foredeck. Stowed flat
+    // against the deck it leaves the mouth open; swung down it bars the mouth so
+    // nothing wider than the tunnel can enter while the vessel steers around it.
+    const g = part('rake', 2, 'Reject rake — servo-driven tined gate at the tunnel mouth', [0, 0.62, 0.45], [0, 0.12, 0.64]);
+    const piv = new T.Group(); piv.position.set(0, 0.212, 0.64); g.add(piv);
+    cyl(0.008, 0.50, M.steel, 0, 0, 0, piv, 'x', 12);                   // hinge shaft
+    for (let i = 0; i < 9; i++) cyl(0.005, 0.30, M.steel, -0.22 + i * 0.055, -0.15, 0, piv, 'y', 8);
+    box(0.47, 0.012, 0.012, M.steel, 0, -0.295, 0, piv);                // tine tie-bar
+    [1, -1].forEach((sg) => box(0.02, 0.03, 0.03, M.alu, sg * 0.245, 0.212, 0.64, g)); // bearing blocks on the rails
+    box(0.06, 0.035, 0.045, M.black, 0.19, 0.2, 0.615, g);              // IP68 servo
+    AB.rakePiv = piv;
+  }
+  AB.setRake = (t) => (AB.rakePiv.rotation.x = (1 - t) * Math.PI / 2);  // t = 1 closed (tines down)
+  AB.setRake(0);
   AB.setFlaps = (th) => AB.flaps.forEach((f) => (f.piv.rotation.y = f.sg * th));
   AB.setFlaps(1.1);
 
@@ -454,18 +469,18 @@
     { n: 1, title: 'Floating body & structural frame', step: 'Twin foam-filled hulls are bolted to the aluminium bridge frame; the foredeck ties the bows together.',
       text: 'Catamaran layout: two sealed hulls carry the load and leave an open flow-through tunnel between them. The hulls are asymmetric: flat inner walls give the waste a straight, snag-free channel, while the outer sides taper to fine reverse-raked bows that cut drag and shed weed. Four cross-beams and two rails in 30×30 mm 6061-T6 extrusion tie the hulls together and give every other subsystem a hard mounting point.',
       specs: ['LOA 1.62 m · beam 1.07 m · draft ≈ 0.15 m', 'Hulls: rotomoulded HDPE, closed-cell PU foam fill', 'Asymmetric wave-piercing form, flat tunnel walls', 'Tunnel: 0.52 m wide, open bow to stern', 'Displacement at design waterline ≈ 100 kg'] },
-    { n: 2, title: 'Front waste collection mechanism', step: 'Guide wings hinge onto the bow posts; actuators, flap gate and inspection hatch are fitted.',
-      text: 'Two hinged mesh wings form a funnel that sweeps a 1.6 m swath of surface water into the tunnel as the boat advances. Linear actuators set the sweep angle (narrow for tight channels, wide for open water). A spring-loaded non-return flap gate lets waste in and stops it washing back out when the boat slows or reverses.',
-      specs: ['Wings: 0.80 × 0.24 m, 25 mm welded stainless mesh', 'Sweep 20–60°, IP68 linear actuators, ≈ 105 mm stroke', 'Swath 1.15–1.99 m (1.63 m at 40°)', 'Gate: 2 × HDPE flaps on torsion-spring hinges'] },
+    { n: 2, title: 'Front waste collection mechanism', step: 'Guide wings hinge onto the bow posts; actuators, reject rake, flap gate and inspection hatch are fitted.',
+      text: 'Two hinged mesh wings form a funnel that sweeps a 1.6 m swath of surface water into the tunnel as the boat advances. Linear actuators set the sweep angle (narrow for tight channels, wide for open water). A servo-driven reject rake swings down across the mouth when the vision system reports an object too large for the tunnel, so it cannot enter and jam while the boat steers around it. A spring-loaded non-return flap gate lets waste in and stops it washing back out when the boat slows or reverses.',
+      specs: ['Wings: 0.80 × 0.24 m, 25 mm welded stainless mesh', 'Sweep 20–60°, IP68 linear actuators, ≈ 105 mm stroke', 'Swath 1.15–1.99 m (1.63 m at 40°)', 'Reject rake: 9 tines at 55 mm pitch, closes in 0.8 s', 'Gate: 2 × HDPE flaps on torsion-spring hinges'] },
     { n: 3, title: 'Detachable rear collection net', step: 'The net frame drops into the stern guide channels and is locked by two quick-release latches.',
       text: 'The team’s key addition. Waste carried through the tunnel is retained in a net bag trailing between the thrusters. The bag is laced to a rigid mouth frame that slides vertically into two stern channels, so a full net is lifted out by its handle and a fresh one dropped in within seconds — no tools, and the boat never leaves the water. Guard rails keep the bag clear of the propeller ducts.',
       specs: ['Mouth 0.50 × 0.20 m, 70 mm above / 130 mm below waterline', 'Bag: 0.95 m knotless HDPE, 10 mm mesh, ≈ 70 L', 'Head-rope floats + cod-end drawstring for emptying', 'Swap: 2 latches, lift handle, no tools'] },
     { n: 4, title: 'Propulsion motors & propellers', step: 'Thruster brackets bolt to each transom; pods sit below the waterline.',
       text: 'Two independently driven ducted thrusters, one behind each hull. Steering is by differential thrust, so there is no rudder to foul. Mounting them on the hulls keeps the propellers outside the waste stream; the ducts and guard rails stop the net and debris reaching the blades.',
-      specs: ['2 × 24 V brushless thruster, ≈ 350 W each', '3-blade Ø110 mm prop in Kort-style duct', 'Differential steering, turn-in-place', 'Cruise 0.5 m/s collecting · 1.5 m/s transit'] },
+      specs: ['2 × 24 V brushless thruster, ≈ 350 W each', '3-blade Ø110 mm prop in Kort-style duct', 'Differential steering, turn-in-place', 'Collecting at 0.5 m/s · model top speed ≈ 1.5 m/s'] },
     { n: 5, title: 'Camera & AI detection system', step: 'The sensor pylon and dome camera mount on the foredeck; the edge computer goes on the enclosure back-plate.',
       text: 'A forward dome camera on a raised bow pylon, 0.55 m above the water for a longer look-ahead, streams video to an embedded GPU computer in the enclosure. A lightweight object-detection network classifies floating items (bottle, bag, can, organic) and returns their bearing; the autopilot converts that bearing into differential thrust so the funnel is steered onto the target.',
-      specs: ['IP67 dome, 1080p30, 79° horizontal FOV', 'Edge computer: embedded GPU module, ≈ 15 W', 'Detector: single-stage CNN, ≈ 25 fps on-board', 'GigE link through IP68 gland'] },
+      specs: ['IP67 dome, 1080p30, 79° horizontal FOV', 'Edge computer: embedded GPU module, ≈ 15 W', 'Detector: YOLO26n, runs fully offline', 'Box → range + width on the water plane', 'GigE link through IP68 gland'] },
     { n: 6, title: 'Sensors & electronic components', step: 'GNSS mast, antennas, ultrasonic and level sensors are mounted; autopilot, ESCs and radio go in the enclosure.',
       text: 'Navigation and safety sensing around the AI core: GNSS + compass for position hold and return-to-dock, two forward ultrasonic rangers and a mmWave radar for obstacle stand-off, a time-of-flight sensor watching the net mouth for a full bag, and LTE plus 2.4 GHz RC links for telemetry and manual override.',
       specs: ['GNSS/compass puck on 0.4 m mast', 'Autopilot with IMU, 2 × 40 A marine ESC', '2 × waterproof ultrasonic (0.25–4.5 m)', 'LTE telemetry + 2.4 GHz RC failsafe'] },
@@ -474,7 +489,7 @@
       specs: ['460 × 350 × 135 mm, IP67', 'Silicone gasket, 6 × M5 captive screws', '8 × M16 cable glands, pressure vent', 'Aluminium back-plate as heat spreader'] },
     { n: 8, title: 'Battery & power management', step: 'One battery pack is strapped into each hull; fusing, DC-DC and the isolator are wired in.',
       text: 'Two LiFePO4 packs sit low and amidships, one per hull, which keeps the centre of gravity down and the boat level as the net fills. Each pack has its own BMS; a fused distribution block feeds the ESCs directly at 24 V and a DC-DC converter supplies 12 V / 5 V to the computer and sensors.',
-      specs: ['2 × 25.6 V 40 Ah LiFePO4 (≈ 2 kWh total)', 'BMS per pack, 60 A continuous', 'Fused bus + 24→12/5 V DC-DC', 'Stern charge port and main isolator / e-stop', '3 deck solar panels, ≈ 40 Wp via MPPT', '≈ 6 h collecting at 0.5 m/s, longer in sun'] },
+      specs: ['2 × 25.6 V 40 Ah LiFePO4 (≈ 2 kWh total)', 'BMS per pack, 60 A continuous', 'Fused bus + 24→12/5 V DC-DC', 'Stern charge port and main isolator / e-stop', '3 deck solar panels, ≈ 40 Wp via MPPT', '≈ 15 h at 0.5 m/s in the MATLAB model (drag is an estimate)'] },
     { n: 9, title: 'Covers, harness, brackets & fasteners', step: 'Harness is routed and glanded, deck covers and service lids are closed and bolted, handles fitted.',
       text: 'What holds it together and keeps it serviceable: the wiring harness routed under the frame rails, the aft deck cover and three bolted service lids over the battery and electronics bays, deck-mounted solar panels, gusset plates at each frame joint, and four lifting handles for two-person launch.',
       specs: ['A4 (316) stainless M5/M6 throughout', 'Marine tinned cable, IP68 inline connectors', 'GRP covers on neoprene seals', '4 × lifting handles'] },

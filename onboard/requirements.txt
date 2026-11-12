@@ -1,0 +1,6 @@
+# Onboard runtime. Tested with Python 3.13, ultralytics 8.4.211, pymavlink 2.4.50,
+# torch 2.15 (CPU), opencv 5.0. On a Jetson install the NVIDIA-provided torch build.
+ultralytics>=8.4
+opencv-python
+pymavlink
+pytest

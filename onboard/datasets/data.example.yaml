@@ -1,0 +1,24 @@
+# Template for the floating-waste dataset (Ultralytics YOLO format).
+# Copy to datasets/floating_waste/data.yaml and point `path` at your images.
+# Class names must match config/onboard.json:
+#   collect   : 0-7     oversize : 8-11     avoid : 12-15
+path: datasets/floating_waste
+train: images/train
+val: images/val
+names:
+  0: bottle
+  1: can
+  2: plastic_bag
+  3: cup
+  4: carton
+  5: foam
+  6: wrapper
+  7: other_waste
+  8: branch
+  9: log
+  10: tyre
+  11: vegetation_mat
+  12: person
+  13: boat
+  14: bird
+  15: animal

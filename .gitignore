@@ -1,2 +1,16 @@
 82607.jpg
 *.mp4
+onboard/.venv/
+__pycache__/
+.pytest_cache/
+*.pt
+*.onnx
+*.engine
+onboard/data/
+onboard/runs/
+runs/
+*.sqlite*
+matlab_run.log
+matlab/simulink/*.slx
+matlab/simulink/slprj/
+*.asv
